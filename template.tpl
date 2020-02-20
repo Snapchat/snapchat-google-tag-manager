@@ -533,7 +533,7 @@ function sdkCallback() {
   log("here = ", data);
   var eventData = {
     'pixel_id': data.pixel_id,
-    'event_tag': 'gtm'
+    'integration': 'gtm'
   };
   var initData = {};
   var eventParams = [
