@@ -9,6 +9,7 @@ Google may provide), as modified from time to time.
 ___INFO___
 
 {
+  "categories": ["ADVERTISING", "ANALYTICS", "ATTRIBUTION", "CONVERSIONS", "MARKETING"],
   "displayName": "Snap Pixel",
   "description": "The Snap Pixel helps advertisers measure the cross-device impact of campaigns. Advertisers will be able to see how many Snapchatters take action on their website(s).",
   "securityGroups": [
