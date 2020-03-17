@@ -1,5 +1,5 @@
 homepage: "https://forbusiness.snapchat.com"
 documentation: "https://businesshelp.snapchat.com/en-US/a/formatting-pixel"
 versions:
-  - sha: 72cf72247ddfbc30dd9bad76a1f8a87abddf4811
+  - sha: 3633287c07dc5c703f9fbabd21014aa28896b9b7
     changeNotes: Initial Snap Pixel template release
