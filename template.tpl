@@ -307,7 +307,7 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "PARAM_TABLE",
-    "name": "additionalInitData",
+    "name": "additional_init_data",
     "displayName": "Additional Initialization Data",
     "paramTableColumns": [
       {
@@ -337,16 +337,19 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
-var injectScript = require('injectScript');
 var log = require('logToConsole');
-var setInWindow = require('setInWindow');
 var callInWindow = require('callInWindow');
-var copyFromDataLayer = require('copyFromDataLayer');
-var createArgumentsQueue = require('createArgumentsQueue');
+var callLater = require('callLater');
+var copyFromWindow = require('copyFromWindow');
+var createQueue = require('createQueue');
+var injectScript = require('injectScript');
+var makeTableMap = require('makeTableMap');
+var sendPixel = require('sendPixel');
+var setInWindow = require('setInWindow');
 
 function mergeObjects() {
     var res = {};
-    for(var i = 0; i < arguments.length;i++){
+    for(var i = 0; i < arguments.length; ++i) {
         for(var x in arguments[i]) {
             res[x] = arguments[i][x];
         }
@@ -354,81 +357,42 @@ function mergeObjects() {
     return res;
 }
 
-function sdkCallback() {  
-  var datalayerEventData = copyFromDataLayer('event_data') || {};
-  log('datalayerEventData =', datalayerEventData);
-  log("here = ", data);
-  var eventData = {
-    'pixel_id': data.pixel_id,
-    'integration': 'gtm'
-  };
-  var initData = {};
-  var eventParams = [
-    'user_email',
-    'user_hashed_email',
-    'user_phone_number',
-    'user_hashed_phone_number',
-    'user_mobile_ad_id',
-    'user_hashed_mobile_ad_id',
-    'event_type',
-    'page_url',
-    'price',
-    'item_category',
-    'item_ids',
-    'currency',
-    'number_items',
-    'transaction_id',
-    'description',
-    'level',
-    'search_string',
-    'payment_info_available',
-    'sign_up_method',
-    'success'
-  ];
-  
-  if (data.hasOwnProperty('additionalInitData')) {
-    for (var j = 0; j < data.additionalInitData.length; j++) {
-      var initDatum = data.additionalInitData[j];
-      if (initDatum.value === '[]') {
-        initData[initDatum.key] = [];
-      } else {
-        initData[initDatum.key] = initDatum.value || "";
-      }
-    }
+function bootstrapFn() {
+  var snaptr = copyFromWindow('snaptr');
+  if (snaptr) {
+    return snaptr;
   }
   
-  for (var i = 0; i < eventParams.length; i++) {
-    var key = eventParams[i];
-    
-    if (datalayerEventData.hasOwnProperty(key)) {
-      eventData[key] = datalayerEventData[key];
-    } else if (!eventData.hasOwnProperty(key) && 
-               data.hasOwnProperty(key) && 
-               data[key] !== "") {
-      eventData[key] = data[key];
+  setInWindow('snaptr', function() {
+    var handler = copyFromWindow('snaptr.handleRequest');
+    if (handler) {
+      callInWindow('snaptr.handleRequest.apply', null, arguments);
+    } else {
+      callInWindow('snaptr.queue.push', arguments);
     }
-  }
-    
-  log('eventData =', eventData);
-  log('initData =', initData);
-  callInWindow('snaptr', 'init', eventData.pixel_id, mergeObjects(eventData, initData));
-  callInWindow('snaptr', 'track', eventData.pixel_id, eventData.event_type, eventData);
-  callInWindow('snaptr.clean');
-  
-  data.gtmOnSuccess();
+  });
+  return copyFromWindow('snaptr');
 }
 
-log('data =', data);
+function bootstrap() {
+  var snaptr = bootstrapFn();
+  createQueue('snaptr.queue');
+  setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
 
-createArgumentsQueue('snaptr', 'snaptr.queue');
-setInWindow('snaptr.isGTM', true, true);
+  data.integration = "gtm";
+  log("data = ", data);
+  var additionalInitData = (data.additional_init_data) ? makeTableMap(data.additional_init_data, 'key', 'value') : {};
+  var initData = mergeObjects(data, additionalInitData);
 
-injectScript(
-  'https://sc-static.net/scevent-gtm.min.js',
-  sdkCallback,
-  data.gtmOnFailure,
-  'snaptr'
-);
+  log("initData = ", initData);
+  snaptr('init', initData.pixel_id, initData);
+  snaptr('track', initData.pixel_id, initData.event_type, data);
+
+  var url = 'https://sc-static.net/scevent.min.js';
+  injectScript(url, data.gtmOnSuccess, data.gtmOnFailure, url);
+}
+
+bootstrap();
 
 
 ___WEB_PERMISSIONS___
@@ -448,7 +412,7 @@ ___WEB_PERMISSIONS___
             "listItem": [
               {
                 "type": 1,
-                "string": "https://sc-static.net/*.js"
+                "string": "https://sc-static.net/*"
               },
               {
                 "type": 1,
@@ -559,6 +523,84 @@ ___WEB_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
+                    "string": "snaptr.handleRequest"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "snaptr.handleRequest.apply"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
                     "string": "snaptr.queue"
                   },
                   {
@@ -598,11 +640,7 @@ ___WEB_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "snaptr.isGTM"
-                  },
-                  {
-                    "type": 8,
-                    "boolean": true
+                    "string": "snaptr.queue.push"
                   },
                   {
                     "type": 8,
@@ -611,6 +649,10 @@ ___WEB_PERMISSIONS___
                   {
                     "type": 8,
                     "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
                   }
                 ]
               },
@@ -637,7 +679,7 @@ ___WEB_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "snaptr.clean"
+                    "string": "snaptr.sendPixelByGTM"
                   },
                   {
                     "type": 8,
@@ -645,7 +687,7 @@ ___WEB_PERMISSIONS___
                   },
                   {
                     "type": 8,
-                    "boolean": false
+                    "boolean": true
                   },
                   {
                     "type": 8,
@@ -666,18 +708,18 @@ ___WEB_PERMISSIONS___
   {
     "instance": {
       "key": {
-        "publicId": "read_data_layer",
+        "publicId": "send_pixel",
         "versionId": "1"
       },
       "param": [
         {
-          "key": "keyPatterns",
+          "key": "urls",
           "value": {
             "type": 2,
             "listItem": [
               {
                 "type": 1,
-                "string": "event_data"
+                "string": "https://tr.snapchat.com/*"
               }
             ]
           }
