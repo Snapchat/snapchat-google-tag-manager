@@ -1,6 +1,8 @@
 homepage: "https://forbusiness.snapchat.com"
 documentation: "https://businesshelp.snapchat.com/en-US/a/formatting-pixel"
 versions:
+  - sha: b458827632eea2068be1aa0d2c74f24c6d0a45b4
+    changeNotes: Simplify sandboxed js and use GTM sendPixel when available
   - sha: 62e65095f0645b539a086cdabbc86062b3f32c77
     changeNotes: Add more event types, allow macros in event type selection
   - sha: 06a6fe6e58b247ee0ddca702a7c5ab07dca3121c
