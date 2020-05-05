@@ -339,7 +339,6 @@ ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
 var log = require('logToConsole');
 var callInWindow = require('callInWindow');
-var callLater = require('callLater');
 var copyFromWindow = require('copyFromWindow');
 var createQueue = require('createQueue');
 var injectScript = require('injectScript');
