@@ -374,6 +374,7 @@ function bootstrapFn() {
 }
 
 function bootstrap() {
+  var existingSnaptr = copyFromWindow('snaptr');
   var snaptr = bootstrapFn();
   createQueue('snaptr.queue');
   setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
@@ -387,8 +388,10 @@ function bootstrap() {
   snaptr('init', initData.pixel_id, initData);
   snaptr('track', initData.pixel_id, initData.event_type, data);
 
-  var url = 'https://sc-static.net/scevent.min.js';
-  injectScript(url, data.gtmOnSuccess, data.gtmOnFailure, url);
+  if (!existingSnaptr) {
+    var url = 'https://sc-static.net/scevent.min.js';
+    injectScript(url, data.gtmOnSuccess, data.gtmOnFailure, url);
+  }
 }
 
 bootstrap();
