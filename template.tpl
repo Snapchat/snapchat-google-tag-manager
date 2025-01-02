@@ -207,6 +207,16 @@ ___TEMPLATE_PARAMETERS___
     "name": "user_hashed_phone_number",
     "type": "TEXT"
   },
+    {
+    "displayName": "User First Name",
+    "name": "firstname",
+    "type": "TEXT"
+  },
+    {
+    "displayName": "User Last Name",
+    "name": "lastname",
+    "type": "TEXT"
+  },
   {
     "displayName": "User Mobile Ad ID",
     "name": "user_mobile_ad_id",
