@@ -278,6 +278,11 @@ ___TEMPLATE_PARAMETERS___
     "type": "TEXT"
   },
   {
+    "displayName": "Client Deduplication ID",
+    "name": "client_dedup_id",
+    "type": "TEXT"
+  },
+  {
     "notSetText": "Not Applicable",
     "macrosInSelect": true,
     "selectItems": [
