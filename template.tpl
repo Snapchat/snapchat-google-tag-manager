@@ -207,6 +207,16 @@ ___TEMPLATE_PARAMETERS___
     "name": "user_hashed_phone_number",
     "type": "TEXT"
   },
+    {
+    "displayName": "User First Name",
+    "name": "firstname",
+    "type": "TEXT"
+  },
+    {
+    "displayName": "User Last Name",
+    "name": "lastname",
+    "type": "TEXT"
+  },
   {
     "displayName": "User Mobile Ad ID",
     "name": "user_mobile_ad_id",
@@ -265,6 +275,11 @@ ___TEMPLATE_PARAMETERS___
   {
     "displayName": "Sign Up Method",
     "name": "sign_up_method",
+    "type": "TEXT"
+  },
+  {
+    "displayName": "Client Deduplication ID",
+    "name": "client_dedup_id",
     "type": "TEXT"
   },
   {
@@ -374,6 +389,7 @@ function bootstrapFn() {
 }
 
 function bootstrap() {
+  var existingSnaptr = copyFromWindow('snaptr');
   var snaptr = bootstrapFn();
   createQueue('snaptr.queue');
   setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
@@ -387,8 +403,10 @@ function bootstrap() {
   snaptr('init', initData.pixel_id, initData);
   snaptr('track', initData.pixel_id, initData.event_type, data);
 
-  var url = 'https://sc-static.net/scevent.min.js';
-  injectScript(url, data.gtmOnSuccess, data.gtmOnFailure, url);
+  if (!existingSnaptr) {
+    var url = 'https://sc-static.net/scevent.min.js';
+    injectScript(url, data.gtmOnSuccess, data.gtmOnFailure, url);
+  }
 }
 
 bootstrap();
