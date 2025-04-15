@@ -1,6 +1,8 @@
 homepage: "https://forbusiness.snapchat.com"
 documentation: "https://businesshelp.snapchat.com/en-US/a/formatting-pixel"
 versions:
+  - sha: 99079b8514a383bf37897d4cad893dce4248ecfa
+    changeNotes: Prevent duplicate loads of Pixel JS when tag is loaded several times on same page
   - sha: b458827632eea2068be1aa0d2c74f24c6d0a45b4
     changeNotes: Simplify sandboxed js and use GTM sendPixel when available
   - sha: 62e65095f0645b539a086cdabbc86062b3f32c77
