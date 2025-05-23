@@ -400,8 +400,12 @@ function bootstrap() {
   var initData = mergeObjects(data, additionalInitData);
 
   log("initData = ", initData);
-  snaptr('init', initData.pixel_id, initData);
-  snaptr('track', initData.pixel_id, initData.event_type, data);
+  if (initData.pixel_id) {
+    snaptr('init', initData.pixel_id, initData);
+    if (initData.event_type) {
+      snaptr('track', initData.pixel_id, initData.event_type, data);
+    }
+  }
 
   if (!existingSnaptr) {
     var url = 'https://sc-static.net/scevent.min.js';
