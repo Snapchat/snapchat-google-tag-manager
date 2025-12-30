@@ -53,7 +53,8 @@ ___TEMPLATE_PARAMETERS___
     ],
     "displayName": "Pixel ID",
     "name": "pixel_id",
-    "type": "TEXT"
+    "type": "TEXT",
+    "help": "Your Snap Pixel ID (UUID format). Tip: Enable \"Console Logging\" below to verify this value during debugging."
   },
   {
     "macrosInSelect": true,
@@ -352,7 +353,16 @@ ___TEMPLATE_PARAMETERS___
         "isUnique": false
       }
     ],
-    "help": "Enter in custom initialization data"
+    "help": "Enter in custom initialization data. Tip: Enable \"Console Logging\" below to inspect these values during debugging."
+  },
+  {
+    "type": "CHECKBOX",
+    "name": "enable_console_logging",
+    "displayName": "Enable Console Logging (Debug Mode)",
+    "checkboxText": "Enable console logging when in debug/preview mode",
+    "simpleValueType": true,
+    "defaultValue": false,
+    "help": "When enabled, the template will log initialization data to the browser console during GTM preview/debug mode. This is helpful for verifying configuration values and troubleshooting tracking issues. IMPORTANT: Keep this disabled during normal operations to prevent performance issues during Tag Assistant sessions."
   }
 ]
 
@@ -402,11 +412,21 @@ function bootstrap() {
   setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
 
   data.integration = "gtm";
-  log("data = ", data);
+
+  // Console logging is optional and controlled by the enable_console_logging parameter
+  // Default: disabled to prevent performance issues during Tag Assistant preview sessions
+  // Enable in tag configuration when debugging is needed
+  if (data.enable_console_logging) {
+    log("data = ", data);
+  }
+
   var additionalInitData = (data.additional_init_data) ? makeTableMap(data.additional_init_data, 'key', 'value') : {};
   var initData = mergeObjects(data, additionalInitData);
 
-  log("initData = ", initData);
+  if (data.enable_console_logging) {
+    log("initData = ", initData);
+  }
+
   if (initData.pixel_id) {
     snaptr('init', initData.pixel_id, initData);
     if (initData.event_type) {
