@@ -1,4 +1,4 @@
-﻿___TERMS_OF_SERVICE___
+___TERMS_OF_SERVICE___
 
 By creating or modifying this file you agree to Google Tag Manager's Community
 Template Gallery Developer Terms of Service available at
@@ -284,10 +284,10 @@ ___TEMPLATE_PARAMETERS___
     "type": "TEXT"
   },
   {
-    "displayName": "Gateway Script URL",
+    "displayName": "CAPI Gateway Script URL",
     "name": "gateway_url",
     "type": "TEXT",
-    "help": "Optional: If you are using the Conversions API Gateway, enter the full URL for your scevent.min.js file here. IMPORTANT: If using a custom domain, you must also update the template's Script Injection permissions to allow your domain.",
+    "help": "Optional: If you are using the Conversions API Gateway, enter the full URL for your scevent.min.js file here (e.g., https://yourdomain.com/scevent.min.js). IMPORTANT: If using a custom domain, you MUST manually edit this template and add your domain to the Script Injection permissions under the Permissions tab before the template will work.",
     "defaultValue": "https://sc-static.net/scevent.min.js"
   },
   {
@@ -436,8 +436,10 @@ function bootstrap() {
 
   if (!existingSnaptr) {
     // Use gateway_url if provided (for Conversions API Gateway with first-party domains)
-    // NOTE: If using a custom domain, the template's Script Injection permissions must be
-    // updated to allow that domain (see ___WEB_PERMISSIONS___ section)
+    // SECURITY NOTE: By default, only sc-static.net and tr.snapchat.com are allowed domains.
+    // If using a custom domain, you MUST manually add it to the Script Injection permissions
+    // in the ___WEB_PERMISSIONS___ section below. Do NOT add placeholder or example domains
+    // as this creates security risks for users.
     var url = data.gateway_url || 'https://sc-static.net/scevent.min.js';
     injectScript(url, data.gtmOnSuccess, data.gtmOnFailure, url);
   }
@@ -468,11 +470,6 @@ ___WEB_PERMISSIONS___
               {
                 "type": 1,
                 "string": "https://tr.snapchat.com/*"
-              }
-              ,
-              {
-                "type": 1,
-                "string": "https://replace.with.gatewayUrl.example.com"
               }
             ]
           }
