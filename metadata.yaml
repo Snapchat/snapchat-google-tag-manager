@@ -1,8 +1,6 @@
 homepage: "https://forbusiness.snapchat.com"
 documentation: "https://businesshelp.snapchat.com/en-US/a/formatting-pixel"
 versions:
-  - sha: pending
-    changeNotes: Add optional Gateway Script URL field to support Conversions API Gateway with first-party domains; Add configurable console logging option to allow users to disable debug logs that may cause performance issues during preview/testing
   - sha: 1255335a1796fb2b65eced05a8726ff47f167222
     changeNotes: Check for pixel ID and event type
   - sha: 99079b8514a383bf37897d4cad893dce4248ecfa
