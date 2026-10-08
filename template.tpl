@@ -279,6 +279,12 @@ ___TEMPLATE_PARAMETERS___
     "type": "TEXT"
   },
   {
+    "displayName": "Event Tag",
+    "name": "event_tag",
+    "type": "TEXT",
+    "help": "Optional label for this event, such as qualified_lead. You can use a GTM variable. Set it on each tag that needs an event tag."
+  },
+  {
     "displayName": "Client Deduplication ID",
     "name": "client_dedup_id",
     "type": "TEXT"
@@ -422,6 +428,9 @@ function bootstrap() {
 
   var additionalInitData = (data.additional_init_data) ? makeTableMap(data.additional_init_data, 'key', 'value') : {};
   var initData = mergeObjects(data, additionalInitData);
+  // Keep the dedicated event tag on the track call, not in persistent init data.
+  // Preserve event_tag in Additional Initialization Data for existing tags.
+  initData.event_tag = additionalInitData.event_tag;
 
   if (data.enable_console_logging) {
     log("initData = ", initData);
