@@ -282,7 +282,7 @@ ___TEMPLATE_PARAMETERS___
     "displayName": "Event Tag",
     "name": "event_tag",
     "type": "TEXT",
-    "help": "Optional short label for this event, such as qualified_lead. Use a fixed value or a GTM variable; do not use URLs or user IDs. Set it on each tag that needs it. If event_tag is also set in Additional Initialization Data, this field overrides it only for this event; the initialization value remains the default for later events."
+    "help": "Optional short label for the selected event, such as qualified_lead. Use a fixed value or a GTM variable; do not use URLs or user IDs. This field takes precedence over event_tag in Additional Initialization Data. Set an Event Type to send this value."
   },
   {
     "displayName": "Client Deduplication ID",
@@ -359,7 +359,7 @@ ___TEMPLATE_PARAMETERS___
         "isUnique": false
       }
     ],
-    "help": "Enter custom initialization data. Warning: an event_tag here persists for this pixel for the rest of the page. It applies to later events, including other tags and automatic page views, unless an event provides its own event_tag. This can affect Event Tag custom-conversion counts. Use the Event Tag field above for a label that should apply to one event. Enable \"Console Logging\" below to inspect these values during debugging."
+    "help": "Enter custom initialization data. When an Event Type is set, event_tag from this table is sent only with that event; a nonempty Event Tag field takes precedence. Warning: without an Event Type, event_tag remains a default for this pixel for the rest of the page, including later events from other tags and automatic page views. This can affect Event Tag custom-conversion counts. Enable \"Console Logging\" below to inspect these values during debugging."
   },
   {
     "type": "CHECKBOX",
@@ -428,9 +428,15 @@ function bootstrap() {
 
   var additionalInitData = (data.additional_init_data) ? makeTableMap(data.additional_init_data, 'key', 'value') : {};
   var initData = mergeObjects(data, additionalInitData);
-  // Keep the dedicated event tag on the track call, not in persistent init data.
-  // Preserve event_tag in Additional Initialization Data for existing tags.
+  var trackData = mergeObjects(data);
+  // Only setup-only tags retain the table's event tag as an initialization default.
   initData.event_tag = additionalInitData.event_tag;
+  if (initData.event_type) {
+    initData.event_tag = undefined;
+    if (!trackData.event_tag) {
+      trackData.event_tag = additionalInitData.event_tag;
+    }
+  }
 
   if (data.enable_console_logging) {
     log("initData = ", initData);
@@ -439,7 +445,7 @@ function bootstrap() {
   if (initData.pixel_id) {
     snaptr('init', initData.pixel_id, initData);
     if (initData.event_type) {
-      snaptr('track', initData.pixel_id, initData.event_type, data);
+      snaptr('track', initData.pixel_id, initData.event_type, trackData);
     }
   }
 
@@ -825,20 +831,25 @@ scenarios:
     assertThat(calls[3].command).isEqualTo('track');
     assertThat(calls[3].eventType).isEqualTo('PURCHASE');
     assertThat(calls[3].params.event_tag).isEqualTo(undefined);
-- name: Existing initialization event tag is preserved
+- name: Table event tag is sent only with the configured event
   code: |-
     runCode({
       pixel_id: pixelId,
-      event_type: 'PAGE_VIEW',
-      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
+      event_type: 'ADD_CART',
+      additional_init_data: [{key: 'event_tag', value: 'cart'}]
     });
+    runCode({pixel_id: pixelId, event_type: 'PURCHASE'});
 
-    assertThat(calls.length).isEqualTo(2);
+    assertThat(calls.length).isEqualTo(4);
     assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo('page_default');
+    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
     assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].params.event_tag).isEqualTo(undefined);
-- name: Dedicated and initialization event tags remain separate
+    assertThat(calls[1].eventType).isEqualTo('ADD_CART');
+    assertThat(calls[1].params.event_tag).isEqualTo('cart');
+    assertThat(calls[2].params.event_tag).isEqualTo(undefined);
+    assertThat(calls[3].eventType).isEqualTo('PURCHASE');
+    assertThat(calls[3].params.event_tag).isEqualTo(undefined);
+- name: Dedicated event tag takes precedence over the table value
   code: |-
     runCode({
       pixel_id: pixelId,
@@ -849,9 +860,54 @@ scenarios:
 
     assertThat(calls.length).isEqualTo(2);
     assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo('page_default');
+    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
     assertThat(calls[1].command).isEqualTo('track');
     assertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');
+- name: Empty dedicated field falls back to the table event tag
+  code: |-
+    runCode({
+      pixel_id: pixelId,
+      event_type: 'ADD_CART',
+      event_tag: '',
+      additional_init_data: [{key: 'event_tag', value: 'cart'}]
+    });
+
+    assertThat(calls.length).isEqualTo(2);
+    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
+    assertThat(calls[1].params.event_tag).isEqualTo('cart');
+- name: Setup-only tag retains the table event tag in init
+  code: |-
+    runCode({
+      pixel_id: pixelId,
+      event_tag: 'unused_event_label',
+      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
+    });
+
+    assertThat(calls.length).isEqualTo(1);
+    assertThat(calls[0].command).isEqualTo('init');
+    assertThat(calls[0].params.event_tag).isEqualTo('page_default');
+- name: Setup-only tag does not initialize the dedicated event tag
+  code: |-
+    runCode({pixel_id: pixelId, event_tag: 'unused_event_label'});
+
+    assertThat(calls.length).isEqualTo(1);
+    assertThat(calls[0].command).isEqualTo('init');
+    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
+- name: Event type supplied through the table also scopes event tag to track
+  code: |-
+    runCode({
+      pixel_id: pixelId,
+      additional_init_data: [
+        {key: 'event_type', value: 'SIGN_UP'},
+        {key: 'event_tag', value: 'signup'}
+      ]
+    });
+
+    assertThat(calls.length).isEqualTo(2);
+    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
+    assertThat(calls[1].command).isEqualTo('track');
+    assertThat(calls[1].eventType).isEqualTo('SIGN_UP');
+    assertThat(calls[1].params.event_tag).isEqualTo('signup');
 setup: |-
   var pixelId = '00000000-0000-0000-0000-000000000000';
   var calls = [];
