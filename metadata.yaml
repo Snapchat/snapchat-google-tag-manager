@@ -1,8 +1,8 @@
 homepage: "https://forbusiness.snapchat.com"
 documentation: "https://businesshelp.snapchat.com/en-US/a/formatting-pixel"
 versions:
-  - sha: dd516f52b9510c6a28e2363e22c4dbfe129a0bc5
-    changeNotes: Add an optional Event Tag field for individual events, clarify initialization value persistence, and add template tests.
+  - sha: 6ca683fa54dd36d01bb891111de7db468d152265
+    changeNotes: Add an Event Tag field and send event_tag from Additional Initialization Data only with the configured event. Setup-only tags retain page-wide defaults; custom-conversion counts that relied on inherited tags may decrease.
   - sha: 5349ceae84def982d10dda26eb3dd787f87cd87e
     changeNotes: Add optional CAPI Gateway Script URL field to support Conversions API Gateway with first-party domains; Add configurable console logging option to allow users to disable debug logs that may cause performance issues during preview/testing
   - sha: 1255335a1796fb2b65eced05a8726ff47f167222
