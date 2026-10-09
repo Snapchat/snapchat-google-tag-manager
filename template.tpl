@@ -282,7 +282,7 @@ ___TEMPLATE_PARAMETERS___
     "displayName": "Event Tag",
     "name": "event_tag",
     "type": "TEXT",
-    "help": "Optional label for this event, such as qualified_lead. You can use a GTM variable. Set it on each tag that needs an event tag."
+    "help": "Optional short label for this event, such as qualified_lead. Use a fixed value or a GTM variable; do not use URLs or user IDs. Set it on each tag that needs it. If event_tag is also set in Additional Initialization Data, this field overrides it only for this event; the initialization value remains the default for later events."
   },
   {
     "displayName": "Client Deduplication ID",
@@ -359,7 +359,7 @@ ___TEMPLATE_PARAMETERS___
         "isUnique": false
       }
     ],
-    "help": "Enter in custom initialization data. Tip: Enable \"Console Logging\" below to inspect these values during debugging."
+    "help": "Enter custom initialization data. Warning: an event_tag here persists for this pixel for the rest of the page. It applies to later events, including other tags and automatic page views, unless an event provides its own event_tag. This can affect Event Tag custom-conversion counts. Use the Event Tag field above for a label that should apply to one event. Enable \"Console Logging\" below to inspect these values during debugging."
   },
   {
     "type": "CHECKBOX",
@@ -798,7 +798,77 @@ ___WEB_PERMISSIONS___
 
 ___TESTS___
 
-scenarios: []
+scenarios:
+- name: Dedicated event tag stays out of init and later events
+  code: |-
+    runCode({
+      pixel_id: pixelId,
+      event_type: 'SIGN_UP',
+      event_tag: 'qualified_lead'
+    });
+    runCode({
+      pixel_id: pixelId,
+      event_type: 'PURCHASE',
+      event_tag: undefined
+    });
+
+    assertThat(calls.length).isEqualTo(4);
+    assertThat(calls[0].command).isEqualTo('init');
+    assertThat(calls[0].pixelId).isEqualTo(pixelId);
+    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
+    assertThat(calls[1].command).isEqualTo('track');
+    assertThat(calls[1].pixelId).isEqualTo(pixelId);
+    assertThat(calls[1].eventType).isEqualTo('SIGN_UP');
+    assertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');
+    assertThat(calls[2].command).isEqualTo('init');
+    assertThat(calls[2].params.event_tag).isEqualTo(undefined);
+    assertThat(calls[3].command).isEqualTo('track');
+    assertThat(calls[3].eventType).isEqualTo('PURCHASE');
+    assertThat(calls[3].params.event_tag).isEqualTo(undefined);
+- name: Existing initialization event tag is preserved
+  code: |-
+    runCode({
+      pixel_id: pixelId,
+      event_type: 'PAGE_VIEW',
+      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
+    });
+
+    assertThat(calls.length).isEqualTo(2);
+    assertThat(calls[0].command).isEqualTo('init');
+    assertThat(calls[0].params.event_tag).isEqualTo('page_default');
+    assertThat(calls[1].command).isEqualTo('track');
+    assertThat(calls[1].params.event_tag).isEqualTo(undefined);
+- name: Dedicated and initialization event tags remain separate
+  code: |-
+    runCode({
+      pixel_id: pixelId,
+      event_type: 'SIGN_UP',
+      event_tag: 'qualified_lead',
+      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
+    });
+
+    assertThat(calls.length).isEqualTo(2);
+    assertThat(calls[0].command).isEqualTo('init');
+    assertThat(calls[0].params.event_tag).isEqualTo('page_default');
+    assertThat(calls[1].command).isEqualTo('track');
+    assertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');
+setup: |-
+  var pixelId = '00000000-0000-0000-0000-000000000000';
+  var calls = [];
+  mock('copyFromWindow', function(key) {
+    if (key === 'snaptr') {
+      return function(command, id, eventTypeOrParams, eventParams) {
+        calls.push({
+          command: command,
+          pixelId: id,
+          eventType: command === 'track' ? eventTypeOrParams : undefined,
+          params: command === 'init' ? eventTypeOrParams : eventParams
+        });
+      };
+    }
+  });
+  mock('createQueue', function() {});
+  mock('setInWindow', function() {});
 
 
 ___NOTES___
