@@ -279,6 +279,11 @@ ___TEMPLATE_PARAMETERS___
     "type": "TEXT"
   },
   {
+    "displayName": "Event Tag",
+    "name": "event_tag",
+    "type": "TEXT"
+  },
+  {
     "displayName": "Client Deduplication ID",
     "name": "client_dedup_id",
     "type": "TEXT"
