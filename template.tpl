@@ -281,8 +281,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "displayName": "Event Tag",
     "name": "event_tag",
-    "type": "TEXT",
-    "help": "Optional short label for the selected event, such as qualified_lead. Use a fixed value or a GTM variable; do not use URLs or user IDs. This field takes precedence over event_tag in Additional Initialization Data. Set an Event Type to send this value."
+    "type": "TEXT"
   },
   {
     "displayName": "Client Deduplication ID",
@@ -359,7 +358,7 @@ ___TEMPLATE_PARAMETERS___
         "isUnique": false
       }
     ],
-    "help": "Enter custom initialization data. When an Event Type is set, event_tag from this table is sent only with that event; a nonempty Event Tag field takes precedence. Warning: without an Event Type, event_tag remains a default for this pixel for the rest of the page, including later events from other tags and automatic page views. This can affect Event Tag custom-conversion counts. Enable \"Console Logging\" below to inspect these values during debugging."
+    "help": "Enter in custom initialization data. Tip: Enable \"Console Logging\" below to inspect these values during debugging."
   },
   {
     "type": "CHECKBOX",
@@ -428,15 +427,6 @@ function bootstrap() {
 
   var additionalInitData = (data.additional_init_data) ? makeTableMap(data.additional_init_data, 'key', 'value') : {};
   var initData = mergeObjects(data, additionalInitData);
-  var trackData = mergeObjects(data);
-  // Only setup-only tags retain the table's event tag as an initialization default.
-  initData.event_tag = additionalInitData.event_tag;
-  if (initData.event_type) {
-    initData.event_tag = undefined;
-    if (!trackData.event_tag) {
-      trackData.event_tag = additionalInitData.event_tag;
-    }
-  }
 
   if (data.enable_console_logging) {
     log("initData = ", initData);
@@ -445,7 +435,7 @@ function bootstrap() {
   if (initData.pixel_id) {
     snaptr('init', initData.pixel_id, initData);
     if (initData.event_type) {
-      snaptr('track', initData.pixel_id, initData.event_type, trackData);
+      snaptr('track', initData.pixel_id, initData.event_type, data);
     }
   }
 
@@ -804,127 +794,7 @@ ___WEB_PERMISSIONS___
 
 ___TESTS___
 
-scenarios:
-- name: Dedicated event tag stays out of init and later events
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'SIGN_UP',
-      event_tag: 'qualified_lead'
-    });
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'PURCHASE',
-      event_tag: undefined
-    });
-
-    assertThat(calls.length).isEqualTo(4);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].pixelId).isEqualTo(pixelId);
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].pixelId).isEqualTo(pixelId);
-    assertThat(calls[1].eventType).isEqualTo('SIGN_UP');
-    assertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');
-    assertThat(calls[2].command).isEqualTo('init');
-    assertThat(calls[2].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[3].command).isEqualTo('track');
-    assertThat(calls[3].eventType).isEqualTo('PURCHASE');
-    assertThat(calls[3].params.event_tag).isEqualTo(undefined);
-- name: Table event tag is sent only with the configured event
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'ADD_CART',
-      additional_init_data: [{key: 'event_tag', value: 'cart'}]
-    });
-    runCode({pixel_id: pixelId, event_type: 'PURCHASE'});
-
-    assertThat(calls.length).isEqualTo(4);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].eventType).isEqualTo('ADD_CART');
-    assertThat(calls[1].params.event_tag).isEqualTo('cart');
-    assertThat(calls[2].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[3].eventType).isEqualTo('PURCHASE');
-    assertThat(calls[3].params.event_tag).isEqualTo(undefined);
-- name: Dedicated event tag takes precedence over the table value
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'SIGN_UP',
-      event_tag: 'qualified_lead',
-      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
-    });
-
-    assertThat(calls.length).isEqualTo(2);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');
-- name: Empty dedicated field falls back to the table event tag
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'ADD_CART',
-      event_tag: '',
-      additional_init_data: [{key: 'event_tag', value: 'cart'}]
-    });
-
-    assertThat(calls.length).isEqualTo(2);
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].params.event_tag).isEqualTo('cart');
-- name: Setup-only tag retains the table event tag in init
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_tag: 'unused_event_label',
-      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
-    });
-
-    assertThat(calls.length).isEqualTo(1);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo('page_default');
-- name: Setup-only tag does not initialize the dedicated event tag
-  code: |-
-    runCode({pixel_id: pixelId, event_tag: 'unused_event_label'});
-
-    assertThat(calls.length).isEqualTo(1);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-- name: Event type supplied through the table also scopes event tag to track
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      additional_init_data: [
-        {key: 'event_type', value: 'SIGN_UP'},
-        {key: 'event_tag', value: 'signup'}
-      ]
-    });
-
-    assertThat(calls.length).isEqualTo(2);
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].eventType).isEqualTo('SIGN_UP');
-    assertThat(calls[1].params.event_tag).isEqualTo('signup');
-setup: |-
-  var pixelId = '00000000-0000-0000-0000-000000000000';
-  var calls = [];
-  mock('copyFromWindow', function(key) {
-    if (key === 'snaptr') {
-      return function(command, id, eventTypeOrParams, eventParams) {
-        calls.push({
-          command: command,
-          pixelId: id,
-          eventType: command === 'track' ? eventTypeOrParams : undefined,
-          params: command === 'init' ? eventTypeOrParams : eventParams
-        });
-      };
-    }
-  });
-  mock('createQueue', function() {});
-  mock('setInWindow', function() {});
+scenarios: []
 
 
 ___NOTES___
