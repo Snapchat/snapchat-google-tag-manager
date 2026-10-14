@@ -442,6 +442,9 @@ function bootstrap() {
     // as this creates security risks for users.
     var url = data.gateway_url || 'https://sc-static.net/scevent.min.js';
     injectScript(url, data.gtmOnSuccess, data.gtmOnFailure, url);
+  } else {
+    // Pixel JS is already on the page, so there is nothing to load.
+    data.gtmOnSuccess();
   }
 }
 
@@ -789,7 +792,47 @@ ___WEB_PERMISSIONS___
 
 ___TESTS___
 
-scenarios: []
+scenarios:
+- name: Injects Pixel JS when it is not on the page
+  code: |-
+    runCode({pixel_id: pixelId, event_type: 'PAGE_VIEW'});
+
+    assertThat(injectCount).isEqualTo(1);
+    assertApi('gtmOnSuccess').wasCalled();
+- name: Calls gtmOnSuccess when Pixel JS is already on the page
+  code: |-
+    windowSnaptr = function() {};
+    runCode({pixel_id: pixelId, event_type: 'PAGE_VIEW'});
+
+    assertThat(injectCount).isEqualTo(0);
+    assertApi('gtmOnSuccess').wasCalled();
+    assertApi('gtmOnFailure').wasNotCalled();
+- name: Second tag on the page does not inject Pixel JS again
+  code: |-
+    runCode({pixel_id: pixelId, event_type: 'PAGE_VIEW'});
+    runCode({pixel_id: pixelId, event_type: 'PURCHASE'});
+
+    assertThat(injectCount).isEqualTo(1);
+    assertApi('gtmOnFailure').wasNotCalled();
+setup: |-
+  var pixelId = '00000000-0000-0000-0000-000000000000';
+  var windowSnaptr;
+  var injectCount = 0;
+  mock('copyFromWindow', function(key) {
+    if (key === 'snaptr') {
+      return windowSnaptr;
+    }
+  });
+  mock('setInWindow', function(key) {
+    if (key === 'snaptr') {
+      windowSnaptr = function() {};
+    }
+  });
+  mock('createQueue', function() {});
+  mock('injectScript', function(url, onSuccess) {
+    injectCount++;
+    onSuccess();
+  });
 
 
 ___NOTES___
