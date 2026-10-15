@@ -34,6 +34,14 @@ This template supports the Conversions API Gateway, which allows you to serve th
 
 If you leave the Gateway Script URL field blank, the template will use the standard Snap servers (default behavior).
 
+## Testing a template change
+
+Import this branch's `template.tpl` in a GTM Web container under Templates > Tag Templates > New > Import. Run every scenario in the Tests tab, then save the template. The tests mock GTM APIs and do not send events to Snap.
+
+The template reads the current page URL with `getUrl()` instead of a hidden field. Keep the Reads URL permission enabled so initialization and tracking data continue to include `page_url`.
+
+For a browser check, create two tags from the imported template with the same test Pixel ID. Fire the first on All Pages and the second on Window Loaded. Connect GTM Preview to a page with that container installed. Confirm both tags show Succeeded and `scevent.min.js` appears once in the page's Network panel. A cached response still counts as one script load. A dummy UUID can check tag completion and script loading, but cannot verify event ingestion.
+
 ## Feedback
 
 To submit feedback, see the [Github issues](https://github.com/Snapchat/snapchat-google-tag-manager/issues) section.

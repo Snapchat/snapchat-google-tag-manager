@@ -33,13 +33,6 @@ ___TEMPLATE_PARAMETERS___
 
 [
   {
-    "hiddenParamValue": {
-      "type": "URL"
-    },
-    "name": "page_url",
-    "type": "HIDDEN"
-  },
-  {
     "valueValidators": [
       {
         "type": "NON_EMPTY"
@@ -374,6 +367,7 @@ var callInWindow = require('callInWindow');
 var copyFromWindow = require('copyFromWindow');
 var createQueue = require('createQueue');
 var injectScript = require('injectScript');
+var getUrl = require('getUrl');
 var makeTableMap = require('makeTableMap');
 var sendPixel = require('sendPixel');
 var setInWindow = require('setInWindow');
@@ -412,6 +406,7 @@ function bootstrap() {
   setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
 
   data.integration = "gtm";
+  data.page_url = getUrl();
 
   // Console logging is optional and controlled by the enable_console_logging parameter
   // Default: disabled to prevent performance issues during Tag Assistant preview sessions
@@ -454,6 +449,27 @@ bootstrap();
 ___WEB_PERMISSIONS___
 
 [
+  {
+    "instance": {
+      "key": {
+        "publicId": "get_url",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "urlParts",
+          "value": {
+            "type": 1,
+            "string": "any"
+          }
+        }
+      ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
+    },
+    "isRequired": true
+  },
   {
     "instance": {
       "key": {
@@ -793,46 +809,18 @@ ___WEB_PERMISSIONS___
 ___TESTS___
 
 scenarios:
-- name: Injects Pixel JS when it is not on the page
-  code: |-
-    runCode({pixel_id: pixelId, event_type: 'PAGE_VIEW'});
-
-    assertThat(injectCount).isEqualTo(1);
-    assertApi('gtmOnSuccess').wasCalled();
-- name: Calls gtmOnSuccess when Pixel JS is already on the page
-  code: |-
-    windowSnaptr = function() {};
-    runCode({pixel_id: pixelId, event_type: 'PAGE_VIEW'});
-
-    assertThat(injectCount).isEqualTo(0);
-    assertApi('gtmOnSuccess').wasCalled();
-    assertApi('gtmOnFailure').wasNotCalled();
-- name: Second tag on the page does not inject Pixel JS again
-  code: |-
-    runCode({pixel_id: pixelId, event_type: 'PAGE_VIEW'});
-    runCode({pixel_id: pixelId, event_type: 'PURCHASE'});
-
-    assertThat(injectCount).isEqualTo(1);
-    assertApi('gtmOnFailure').wasNotCalled();
-setup: |-
-  var pixelId = '00000000-0000-0000-0000-000000000000';
-  var windowSnaptr;
-  var injectCount = 0;
-  mock('copyFromWindow', function(key) {
-    if (key === 'snaptr') {
-      return windowSnaptr;
-    }
-  });
-  mock('setInWindow', function(key) {
-    if (key === 'snaptr') {
-      windowSnaptr = function() {};
-    }
-  });
-  mock('createQueue', function() {});
-  mock('injectScript', function(url, onSuccess) {
-    injectCount++;
-    onSuccess();
-  });
+- name: "Injects Pixel JS when it is not on the page"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar successCount = 0;\nvar failureCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction onSuccess() { successCount++; }\nfunction onFailure() { failureCount++; }\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType,\n    gtmOnSuccess: onSuccess, gtmOnFailure: onFailure});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunTag('PAGE_VIEW');\nassertThat(injectCount).isEqualTo(1);\nassertThat(successCount).isEqualTo(1);\nassertThat(failureCount).isEqualTo(0);"
+- name: "Calls gtmOnSuccess when Pixel JS is already on the page"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar successCount = 0;\nvar failureCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction onSuccess() { successCount++; }\nfunction onFailure() { failureCount++; }\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType,\n    gtmOnSuccess: onSuccess, gtmOnFailure: onFailure});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nwindowSnaptr = recordCall;\nrunTag('PAGE_VIEW');\nassertThat(injectCount).isEqualTo(0);\nassertThat(successCount).isEqualTo(1);\nassertThat(failureCount).isEqualTo(0);"
+- name: "Second tag on the page does not inject Pixel JS again"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar successCount = 0;\nvar failureCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction onSuccess() { successCount++; }\nfunction onFailure() { failureCount++; }\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType,\n    gtmOnSuccess: onSuccess, gtmOnFailure: onFailure});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nvar firstSuccess = 0;\nvar secondSuccess = 0;\nrunCode({pixel_id: pixelId, event_type: 'PAGE_VIEW',\n  gtmOnSuccess: function() { firstSuccess++; }, gtmOnFailure: onFailure});\nassertThat(firstSuccess).isEqualTo(1);\nrunCode({pixel_id: pixelId, event_type: 'PURCHASE',\n  gtmOnSuccess: function() { secondSuccess++; }, gtmOnFailure: onFailure});\nassertThat(firstSuccess).isEqualTo(1);\nassertThat(secondSuccess).isEqualTo(1);\nassertThat(injectCount).isEqualTo(1);\nassertThat(failureCount).isEqualTo(0);"
+- name: "Reports script load failure without reporting success"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar successCount = 0;\nvar failureCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction onSuccess() { successCount++; }\nfunction onFailure() { failureCount++; }\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType,\n    gtmOnSuccess: onSuccess, gtmOnFailure: onFailure});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nmock('injectScript', function(url, success, failure) {\n  injectCount++;\n  failure();\n});\nrunTag('PAGE_VIEW');\nassertThat(injectCount).isEqualTo(1);\nassertThat(successCount).isEqualTo(0);\nassertThat(failureCount).isEqualTo(1);"
+- name: "Preserves the full page URL in init and track data"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar successCount = 0;\nvar failureCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction onSuccess() { successCount++; }\nfunction onFailure() { failureCount++; }\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType,\n    gtmOnSuccess: onSuccess, gtmOnFailure: onFailure});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunTag('PAGE_VIEW');\nassertThat(calls.length).isEqualTo(2);\nassertThat(calls[0].params.page_url).isEqualTo(pageUrl);\nassertThat(calls[1].params.page_url).isEqualTo(pageUrl);"
+- name: "Keeps additional initialization page URL overrides scoped to init"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar successCount = 0;\nvar failureCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction onSuccess() { successCount++; }\nfunction onFailure() { failureCount++; }\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType,\n    gtmOnSuccess: onSuccess, gtmOnFailure: onFailure});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({pixel_id: pixelId, event_type: 'PAGE_VIEW',\n  additional_init_data: [{key: 'page_url', value: 'https://example.com/override'}]});\nassertThat(calls.length).isEqualTo(2);\nassertThat(calls[0].params.page_url).isEqualTo('https://example.com/override');\nassertThat(calls[1].params.page_url).isEqualTo(pageUrl);"
 
 
 ___NOTES___
