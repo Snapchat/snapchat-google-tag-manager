@@ -40,7 +40,7 @@ Import this branch's `template.tpl` in a GTM Web container under Templates > Tag
 
 The template reads the current page URL with `getUrl()` instead of a hidden field. Keep the Reads URL permission enabled so initialization and tracking data continue to include `page_url`.
 
-For a browser check, fire a SIGN_UP tag with Event Tag `qualified_lead`, followed by a PURCHASE tag with no Event Tag on the same page and Pixel ID. Leave `event_tag` out of setup-only tags. Confirm only the SIGN_UP request has `et=qualified_lead`. Use a test Pixel ID to verify the emitted requests; a dummy UUID cannot verify event ingestion.
+For a browser check, create two tags from the imported template with the same test Pixel ID. Fire a SIGN_UP tag with Event Tag `qualified_lead` on All Pages, then a PURCHASE tag with no Event Tag on Window Loaded. Leave `event_tag` out of setup-only tags. Connect GTM Preview to a page with that container installed. Confirm both tags show Succeeded, only the SIGN_UP request has `et=qualified_lead`, and `scevent.min.js` appears once in the page's Network panel. A cached response still counts as one script load. Use a real test Pixel ID to check event requests; the all-zero dummy ID used by the mocked tests is rejected by Pixel JS.
 
 ## Feedback
 
