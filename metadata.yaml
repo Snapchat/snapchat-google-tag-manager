@@ -1,6 +1,11 @@
 homepage: "https://forbusiness.snapchat.com"
 documentation: "https://businesshelp.snapchat.com/en-US/a/formatting-pixel"
 versions:
+  - sha: 3072cbef23e7867140fc5c1a47a1a466e1ff269c
+    changeNotes: |-
+      Add Event Tag labels scoped to the tag's configured event. Event tags supplied through Additional Initialization Data no longer carry over to later events when an Event Type is set; conversion counts relying on that carry-over may decrease. Setup-only tags retain page-wide defaults.
+      Fix tags remaining "Still running" when Pixel JS is already on the page.
+      Preserve page URL collection using getUrl(), which requires the additional Reads URL permission.
   - sha: 5349ceae84def982d10dda26eb3dd787f87cd87e
     changeNotes: Add optional CAPI Gateway Script URL field to support Conversions API Gateway with first-party domains; Add configurable console logging option to allow users to disable debug logs that may cause performance issues during preview/testing
   - sha: 1255335a1796fb2b65eced05a8726ff47f167222
