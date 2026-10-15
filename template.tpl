@@ -33,13 +33,6 @@ ___TEMPLATE_PARAMETERS___
 
 [
   {
-    "hiddenParamValue": {
-      "type": "URL"
-    },
-    "name": "page_url",
-    "type": "HIDDEN"
-  },
-  {
     "valueValidators": [
       {
         "type": "NON_EMPTY"
@@ -380,6 +373,7 @@ var callInWindow = require('callInWindow');
 var copyFromWindow = require('copyFromWindow');
 var createQueue = require('createQueue');
 var injectScript = require('injectScript');
+var getUrl = require('getUrl');
 var makeTableMap = require('makeTableMap');
 var sendPixel = require('sendPixel');
 var setInWindow = require('setInWindow');
@@ -418,6 +412,7 @@ function bootstrap() {
   setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
 
   data.integration = "gtm";
+  data.page_url = getUrl();
 
   // Console logging is optional and controlled by the enable_console_logging parameter
   // Default: disabled to prevent performance issues during Tag Assistant preview sessions
@@ -465,6 +460,27 @@ bootstrap();
 ___WEB_PERMISSIONS___
 
 [
+  {
+    "instance": {
+      "key": {
+        "publicId": "get_url",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "urlParts",
+          "value": {
+            "type": 1,
+            "string": "any"
+          }
+        }
+      ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
+    },
+    "isRequired": true
+  },
   {
     "instance": {
       "key": {
@@ -804,126 +820,24 @@ ___WEB_PERMISSIONS___
 ___TESTS___
 
 scenarios:
-- name: Dedicated event tag stays out of init and later events
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'SIGN_UP',
-      event_tag: 'qualified_lead'
-    });
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'PURCHASE',
-      event_tag: undefined
-    });
-
-    assertThat(calls.length).isEqualTo(4);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].pixelId).isEqualTo(pixelId);
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].pixelId).isEqualTo(pixelId);
-    assertThat(calls[1].eventType).isEqualTo('SIGN_UP');
-    assertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');
-    assertThat(calls[2].command).isEqualTo('init');
-    assertThat(calls[2].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[3].command).isEqualTo('track');
-    assertThat(calls[3].eventType).isEqualTo('PURCHASE');
-    assertThat(calls[3].params.event_tag).isEqualTo(undefined);
-- name: Table event tag is sent only with the configured event
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'ADD_CART',
-      additional_init_data: [{key: 'event_tag', value: 'cart'}]
-    });
-    runCode({pixel_id: pixelId, event_type: 'PURCHASE'});
-
-    assertThat(calls.length).isEqualTo(4);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].eventType).isEqualTo('ADD_CART');
-    assertThat(calls[1].params.event_tag).isEqualTo('cart');
-    assertThat(calls[2].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[3].eventType).isEqualTo('PURCHASE');
-    assertThat(calls[3].params.event_tag).isEqualTo(undefined);
-- name: Dedicated event tag takes precedence over the table value
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'SIGN_UP',
-      event_tag: 'qualified_lead',
-      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
-    });
-
-    assertThat(calls.length).isEqualTo(2);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');
-- name: Empty dedicated field falls back to the table event tag
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_type: 'ADD_CART',
-      event_tag: '',
-      additional_init_data: [{key: 'event_tag', value: 'cart'}]
-    });
-
-    assertThat(calls.length).isEqualTo(2);
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].params.event_tag).isEqualTo('cart');
-- name: Setup-only tag retains the table event tag in init
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      event_tag: 'unused_event_label',
-      additional_init_data: [{key: 'event_tag', value: 'page_default'}]
-    });
-
-    assertThat(calls.length).isEqualTo(1);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo('page_default');
-- name: Setup-only tag does not initialize the dedicated event tag
-  code: |-
-    runCode({pixel_id: pixelId, event_tag: 'unused_event_label'});
-
-    assertThat(calls.length).isEqualTo(1);
-    assertThat(calls[0].command).isEqualTo('init');
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-- name: Event type supplied through the table also scopes event tag to track
-  code: |-
-    runCode({
-      pixel_id: pixelId,
-      additional_init_data: [
-        {key: 'event_type', value: 'SIGN_UP'},
-        {key: 'event_tag', value: 'signup'}
-      ]
-    });
-
-    assertThat(calls.length).isEqualTo(2);
-    assertThat(calls[0].params.event_tag).isEqualTo(undefined);
-    assertThat(calls[1].command).isEqualTo('track');
-    assertThat(calls[1].eventType).isEqualTo('SIGN_UP');
-    assertThat(calls[1].params.event_tag).isEqualTo('signup');
-setup: |-
-  var pixelId = '00000000-0000-0000-0000-000000000000';
-  var calls = [];
-  mock('copyFromWindow', function(key) {
-    if (key === 'snaptr') {
-      return function(command, id, eventTypeOrParams, eventParams) {
-        calls.push({
-          command: command,
-          pixelId: id,
-          eventType: command === 'track' ? eventTypeOrParams : undefined,
-          params: command === 'init' ? eventTypeOrParams : eventParams
-        });
-      };
-    }
-  });
-  mock('createQueue', function() {});
-  mock('setInWindow', function() {});
+- name: "Dedicated event tag stays out of init and later events"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({\n  pixel_id: pixelId,\n  event_type: 'SIGN_UP',\n  event_tag: 'qualified_lead'\n});\nrunCode({\n  pixel_id: pixelId,\n  event_type: 'PURCHASE',\n  event_tag: undefined\n});\n\nassertThat(calls.length).isEqualTo(4);\nassertThat(calls[0].command).isEqualTo('init');\nassertThat(calls[0].pixelId).isEqualTo(pixelId);\nassertThat(calls[0].params.event_tag).isEqualTo(undefined);\nassertThat(calls[1].command).isEqualTo('track');\nassertThat(calls[1].pixelId).isEqualTo(pixelId);\nassertThat(calls[1].eventType).isEqualTo('SIGN_UP');\nassertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');\nassertThat(calls[2].command).isEqualTo('init');\nassertThat(calls[2].params.event_tag).isEqualTo(undefined);\nassertThat(calls[3].command).isEqualTo('track');\nassertThat(calls[3].eventType).isEqualTo('PURCHASE');\nassertThat(calls[3].params.event_tag).isEqualTo(undefined);"
+- name: "Table event tag is sent only with the configured event"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({\n  pixel_id: pixelId,\n  event_type: 'ADD_CART',\n  additional_init_data: [{key: 'event_tag', value: 'cart'}]\n});\nrunCode({pixel_id: pixelId, event_type: 'PURCHASE'});\n\nassertThat(calls.length).isEqualTo(4);\nassertThat(calls[0].command).isEqualTo('init');\nassertThat(calls[0].params.event_tag).isEqualTo(undefined);\nassertThat(calls[1].command).isEqualTo('track');\nassertThat(calls[1].eventType).isEqualTo('ADD_CART');\nassertThat(calls[1].params.event_tag).isEqualTo('cart');\nassertThat(calls[2].params.event_tag).isEqualTo(undefined);\nassertThat(calls[3].eventType).isEqualTo('PURCHASE');\nassertThat(calls[3].params.event_tag).isEqualTo(undefined);"
+- name: "Dedicated event tag takes precedence over the table value"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({\n  pixel_id: pixelId,\n  event_type: 'SIGN_UP',\n  event_tag: 'qualified_lead',\n  additional_init_data: [{key: 'event_tag', value: 'page_default'}]\n});\n\nassertThat(calls.length).isEqualTo(2);\nassertThat(calls[0].command).isEqualTo('init');\nassertThat(calls[0].params.event_tag).isEqualTo(undefined);\nassertThat(calls[1].command).isEqualTo('track');\nassertThat(calls[1].params.event_tag).isEqualTo('qualified_lead');"
+- name: "Empty dedicated field falls back to the table event tag"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({\n  pixel_id: pixelId,\n  event_type: 'ADD_CART',\n  event_tag: '',\n  additional_init_data: [{key: 'event_tag', value: 'cart'}]\n});\n\nassertThat(calls.length).isEqualTo(2);\nassertThat(calls[0].params.event_tag).isEqualTo(undefined);\nassertThat(calls[1].params.event_tag).isEqualTo('cart');"
+- name: "Setup-only tag retains the table event tag in init"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({\n  pixel_id: pixelId,\n  event_tag: 'unused_event_label',\n  additional_init_data: [{key: 'event_tag', value: 'page_default'}]\n});\n\nassertThat(calls.length).isEqualTo(1);\nassertThat(calls[0].command).isEqualTo('init');\nassertThat(calls[0].params.event_tag).isEqualTo('page_default');"
+- name: "Setup-only tag does not initialize the dedicated event tag"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({pixel_id: pixelId, event_tag: 'unused_event_label'});\n\nassertThat(calls.length).isEqualTo(1);\nassertThat(calls[0].command).isEqualTo('init');\nassertThat(calls[0].params.event_tag).isEqualTo(undefined);"
+- name: "Event type supplied through the table also scopes event tag to track"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({\n  pixel_id: pixelId,\n  additional_init_data: [\n    {key: 'event_type', value: 'SIGN_UP'},\n    {key: 'event_tag', value: 'signup'}\n  ]\n});\n\nassertThat(calls.length).isEqualTo(2);\nassertThat(calls[0].params.event_tag).isEqualTo(undefined);\nassertThat(calls[1].command).isEqualTo('track');\nassertThat(calls[1].eventType).isEqualTo('SIGN_UP');\nassertThat(calls[1].params.event_tag).isEqualTo('signup');"
+- name: "Preserves the full page URL in init and track data"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({pixel_id: pixelId, event_type: 'SIGN_UP'});\nassertThat(calls.length).isEqualTo(2);\nassertThat(calls[0].params.page_url).isEqualTo(pageUrl);\nassertThat(calls[1].params.page_url).isEqualTo(pageUrl);"
+- name: "Keeps additional initialization page URL overrides scoped to init"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar calls = [];\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return function(command, id, eventTypeOrParams, eventParams) {\n      calls.push({\n        command: command,\n        pixelId: id,\n        eventType: command === 'track' ? eventTypeOrParams : undefined,\n        params: command === 'init' ? eventTypeOrParams : eventParams\n      });\n    };\n  }\n});\nmock('createQueue', function() {});\nmock('setInWindow', function() {});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nrunCode({pixel_id: pixelId, event_type: 'PAGE_VIEW',\n  additional_init_data: [{key: 'page_url', value: 'https://example.com/override'}]});\nassertThat(calls.length).isEqualTo(2);\nassertThat(calls[0].params.page_url).isEqualTo('https://example.com/override');\nassertThat(calls[1].params.page_url).isEqualTo(pageUrl);"
 
 
 ___NOTES___
