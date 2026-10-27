@@ -42,6 +42,8 @@ The template reads the current page URL with `getUrl()` instead of a hidden fiel
 
 For a browser check, create two tags from the imported template with the same test Pixel ID. Fire a SIGN_UP tag with Event Tag `qualified_lead` on All Pages, then a PURCHASE tag with no Event Tag on Window Loaded. Leave `event_tag` out of setup-only tags. Connect GTM Preview to a page with that container installed. Confirm both tags show Succeeded, only the SIGN_UP request has `et=qualified_lead`, and `scevent.min.js` appears once in the page's Network panel. A cached response still counts as one script load. Use a real test Pixel ID to check event requests; the all-zero dummy ID used by the mocked tests is rejected by Pixel JS.
 
+To check a missing Pixel ID, create a Data Layer Variable for a key the page never sets, such as `snap_missing_pixel`. Use it as the Pixel ID of a tag that fires on All Pages, with Console Logging enabled. Keep the PURCHASE tag with the real test Pixel ID on Window Loaded so it fires afterward. In Preview, confirm the missing-ID tag shows Failed and the console logs `Snap Pixel: missing required pixel_id`. Then confirm the PURCHASE tag shows Succeeded, `scevent.min.js` loads once, and a PURCHASE request reaches `tr.snapchat.com`.
+
 ## Feedback
 
 To submit feedback, see the [Github issues](https://github.com/Snapchat/snapchat-google-tag-manager/issues) section.
