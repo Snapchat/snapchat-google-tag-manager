@@ -1,6 +1,9 @@
 homepage: "https://forbusiness.snapchat.com"
 documentation: "https://businesshelp.snapchat.com/en-US/a/formatting-pixel"
 versions:
+  - sha: 424dadb3bef39deca5724bd4f3557c5a09c3fe26
+    changeNotes: |-
+      Report tag failure when the Pixel ID is empty at runtime, such as from an unset variable. Later Snap tags on the same page still load Pixel JS and send events.
   - sha: 3072cbef23e7867140fc5c1a47a1a466e1ff269c
     changeNotes: |-
       Add Event Tag labels scoped to the tag's configured event. Event tags supplied through Additional Initialization Data no longer carry over to later events when an Event Type is set; conversion counts relying on that carry-over may decrease. Setup-only tags retain page-wide defaults.
