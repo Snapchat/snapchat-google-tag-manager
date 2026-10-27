@@ -441,6 +441,12 @@ function bootstrap() {
     if (initData.event_type) {
       snaptr('track', initData.pixel_id, initData.event_type, trackData);
     }
+  } else {
+    if (data.enable_console_logging) {
+      log("Snap Pixel: missing required pixel_id");
+    }
+    data.gtmOnFailure();
+    return;
   }
 
   if (!existingSnaptr) {
@@ -849,6 +855,8 @@ scenarios:
   code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\n// Leave the first load pending so its callback cannot satisfy the\n// completion assertion for the second tag.\nmock('injectScript', function() { injectCount++; });\nrunTag('PAGE_VIEW');\nassertThat(injectCount).isEqualTo(1);\nassertApi('gtmOnSuccess').wasNotCalled();\nrunTag('PURCHASE');\nassertThat(injectCount).isEqualTo(1);\nassertApi('gtmOnSuccess').wasCalled();\nassertApi('gtmOnFailure').wasNotCalled();"
 - name: "Reports script load failure without reporting success"
   code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nmock('injectScript', function(url, success, failure) {\n  injectCount++;\n  failure();\n});\nrunTag('PAGE_VIEW');\nassertThat(injectCount).isEqualTo(1);\nassertApi('gtmOnSuccess').wasNotCalled();\nassertApi('gtmOnFailure').wasCalled();"
+- name: "Reports failure when Pixel ID is missing"
+  code: "mock('copyFromWindow', function() {});\nmock('setInWindow', function() {});\nmock('createQueue', function() {});\nmock('getUrl', function() { return 'https://example.com'; });\n\nrunCode({\n  event_type: 'PAGE_VIEW'\n});\n\nassertApi('gtmOnFailure').wasCalled();\nassertApi('gtmOnSuccess').wasNotCalled();"
 
 
 
