@@ -406,11 +406,6 @@ function bootstrapFn() {
 }
 
 function bootstrap() {
-  var existingSnaptr = copyFromWindow('snaptr');
-  var snaptr = bootstrapFn();
-  createQueue('snaptr.queue');
-  setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
-
   data.integration = "gtm";
   data.page_url = getUrl();
 
@@ -436,17 +431,24 @@ function bootstrap() {
     log("initData = ", initData);
   }
 
-  if (initData.pixel_id) {
-    snaptr('init', initData.pixel_id, initData);
-    if (initData.event_type) {
-      snaptr('track', initData.pixel_id, initData.event_type, trackData);
-    }
-  } else {
+  // Fail before touching window.snaptr. A stub left without the script
+  // would make later tags treat Pixel JS as loaded and skip injecting it.
+  if (!initData.pixel_id) {
     if (data.enable_console_logging) {
       log("Snap Pixel: missing required pixel_id");
     }
     data.gtmOnFailure();
     return;
+  }
+
+  var existingSnaptr = copyFromWindow('snaptr');
+  var snaptr = bootstrapFn();
+  createQueue('snaptr.queue');
+  setInWindow('snaptr.sendPixelByGTM', sendPixel, true);
+
+  snaptr('init', initData.pixel_id, initData);
+  if (initData.event_type) {
+    snaptr('track', initData.pixel_id, initData.event_type, trackData);
   }
 
   if (!existingSnaptr) {
@@ -857,6 +859,8 @@ scenarios:
   code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nfunction runTag(eventType) {\n  runCode({pixel_id: pixelId, event_type: eventType});\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nvar pageUrl = 'https://example.com/signup?source=gtm#form';\nmock('getUrl', function() { return pageUrl; });\n\nmock('injectScript', function(url, success, failure) {\n  injectCount++;\n  failure();\n});\nrunTag('PAGE_VIEW');\nassertThat(injectCount).isEqualTo(1);\nassertApi('gtmOnSuccess').wasNotCalled();\nassertApi('gtmOnFailure').wasCalled();"
 - name: "Reports failure when Pixel ID is missing"
   code: "mock('copyFromWindow', function() {});\nmock('setInWindow', function() {});\nmock('createQueue', function() {});\nmock('getUrl', function() { return 'https://example.com'; });\n\nrunCode({\n  event_type: 'PAGE_VIEW'\n});\n\nassertApi('gtmOnFailure').wasCalled();\nassertApi('gtmOnSuccess').wasNotCalled();"
+- name: "Still loads Pixel JS for a later tag after a missing Pixel ID"
+  code: "var pixelId = '00000000-0000-0000-0000-000000000000';\nvar windowSnaptr;\nvar injectCount = 0;\nvar calls = [];\nfunction recordCall(command, id, eventTypeOrParams, eventParams) {\n  calls.push({\n    command: command,\n    params: command === 'init' ? eventTypeOrParams : eventParams\n  });\n}\nmock('copyFromWindow', function(key) {\n  if (key === 'snaptr') {\n    return windowSnaptr;\n  }\n});\nmock('setInWindow', function(key) {\n  if (key === 'snaptr') {\n    windowSnaptr = recordCall;\n  }\n});\nmock('createQueue', function() {});\nmock('injectScript', function(url, onSuccess) {\n  injectCount++;\n  onSuccess();\n});\nmock('getUrl', function() { return 'https://example.com'; });\n\n// A tag without a Pixel ID must not leave a snaptr stub behind,\n// or the next tag would skip loading Pixel JS.\nrunCode({event_type: 'PAGE_VIEW'});\nassertThat(windowSnaptr).isUndefined();\nassertThat(injectCount).isEqualTo(0);\nassertApi('gtmOnFailure').wasCalled();\nassertApi('gtmOnSuccess').wasNotCalled();\nrunCode({pixel_id: pixelId, event_type: 'PURCHASE'});\nassertThat(injectCount).isEqualTo(1);\nassertThat(calls.length).isEqualTo(2);\nassertApi('gtmOnSuccess').wasCalled();"
 
 
 
